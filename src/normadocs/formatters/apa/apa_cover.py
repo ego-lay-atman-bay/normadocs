@@ -208,13 +208,13 @@ class APACoverHandler:
 
     def _ensure_cover_title(self, meta: DocumentMetadata) -> None:
         """Repeat title as centered bold heading on first text page when needed."""
-        first_heading = self._find_first_heading()
-        if first_heading is None:
-            return
         if self._has_title_heading(meta):
             return
-        title_heading = first_heading.insert_paragraph_before(meta.title)
-        title_heading.style = first_heading.style
+        anchor = self._find_first_heading() or self._find_first_body_paragraph()
+        if anchor is None:
+            return
+        title_heading = anchor.insert_paragraph_before(meta.title)
+        title_heading.style = paragraph_style(self.doc.styles, HEADING_1_STYLE)
         title_heading.alignment = WD_ALIGN_PARAGRAPH.CENTER
         title_heading.paragraph_format.page_break_before = True
         for run in title_heading.runs:
@@ -230,6 +230,15 @@ class APACoverHandler:
             ),
             None,
         )
+
+    def _find_first_body_paragraph(self) -> Any | None:
+        """Return the first body paragraph after the cover, if any."""
+        for p in self.doc.paragraphs:
+            if paragraph_style_name(p).startswith("Heading") and p.text.strip():
+                return p
+            if p.alignment != WD_ALIGN_PARAGRAPH.CENTER and p.text.strip():
+                return p
+        return None
 
     def _has_title_heading(self, meta: DocumentMetadata) -> bool:
         """Check if a title heading already exists."""
