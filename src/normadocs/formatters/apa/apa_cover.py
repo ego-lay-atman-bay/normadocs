@@ -144,7 +144,7 @@ class APACoverHandler:
         if subject:
             lines.append((subject, False))
         if instructor:
-            lines.append((f"Instructor: {instructor}", False))
+            lines.append((instructor, False))
 
     def _append_location(self, lines: list[tuple[str, bool]], meta: DocumentMetadata) -> None:
         """Append location (city/country) when present."""
