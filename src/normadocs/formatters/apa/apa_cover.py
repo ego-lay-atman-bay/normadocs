@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
+import re
+from datetime import datetime
 
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 
@@ -12,6 +14,10 @@ from ...utils.docx_helpers import paragraph_style, paragraph_style_name
 
 if TYPE_CHECKING:
     from docx.document import Document as DocType
+
+
+ISO_DATE_FORMAT = "%Y-%m-%d"
+APA_DATE_FORMAT = "{0:%B} {0.day}, {0:%Y}"
 
 
 class APACoverHandler:
@@ -150,7 +156,12 @@ class APACoverHandler:
         """Append date with preceding blank line."""
         date = meta.date or ""
         if date:
-            lines.append(("", False))
+            try:
+                parsed_date = datetime.strptime(date, '%Y-%m-%d')
+                date = APA_DATE_FORMAT.format(parsed_date)
+            except ValueError:
+                pass
+                
             lines.append((date, False))
 
     def _build_elements_with_spacers(
