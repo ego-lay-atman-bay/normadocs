@@ -224,7 +224,7 @@ class TestAddCoverPage(unittest.TestCase):
                 f"Subject '{meta.subject}' not found in document",
             )
             self.assertIn(
-                f"Instructor: {meta.instructor}",
+                meta.instructor,
                 all_texts,
                 f"Instructor '{meta.instructor}' not found in document",
             )
@@ -281,9 +281,9 @@ class TestAddCoverPage(unittest.TestCase):
 
             all_texts = [p.text for p in formatter.doc.paragraphs]
             self.assertIn(
-                "2026-04-09",
+                "April 9, 2026",
                 all_texts,
-                "Date should appear in cover page",
+                "Date should appear in cover page in APA format",
             )
         finally:
             import os
@@ -397,6 +397,42 @@ class TestAddCoverPage(unittest.TestCase):
                 if p.style and p.style.name == "Heading 1" and p.text == meta.title
             ]
             self.assertEqual(len(title_headings), 1)
+        finally:
+            import os
+
+            os.unlink(temp_path)
+
+    def test_title_heading_added_when_no_heading_present(self):
+        """APA title should be added as a heading when the body has no heading."""
+        meta = DocumentMetadata(title="Título del Documento", author="Autor Test")
+        paragraphs = [
+            {"text": "Contenido de la introducción.", "style": "Normal"},
+        ]
+        formatter, temp_path = self._create_formatter_with_doc(paragraphs)
+
+        try:
+            formatter._add_cover_page(meta)
+
+            title_headings = [
+                p
+                for p in formatter.doc.paragraphs
+                if p.style and p.style.name == "Heading 1" and p.text == meta.title
+            ]
+            self.assertEqual(len(title_headings), 1)
+            self.assertEqual(title_headings[0].alignment, WD_ALIGN_PARAGRAPH.CENTER)
+            self.assertTrue(all(run.bold for run in title_headings[0].runs if run.text))
+            self.assertTrue(title_headings[0].paragraph_format.page_break_before)
+
+            body_paragraphs = [
+                p
+                for p in formatter.doc.paragraphs
+                if p.style and p.style.name != "Heading 1" and p.text.strip()
+            ]
+            self.assertTrue(body_paragraphs)
+            self.assertFalse(
+                body_paragraphs[0].paragraph_format.page_break_before,
+                "Body paragraph should follow the title heading on the same page",
+            )
         finally:
             import os
 
