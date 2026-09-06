@@ -201,7 +201,6 @@ class APAStylesHandler:
             size=body_size,
             bold=bool(cfg["bold"]),
             italic=bool(cfg["italic"]),
-            color_rgb=(0, 0, 0),
         )
         heading.paragraph_format.alignment = cfg["align"]
         heading.paragraph_format.line_spacing_rule = line_spacing
@@ -339,7 +338,6 @@ class APAStylesHandler:
         font = style_or_run.font
         if font_name is not None:
             font.name = font_name
-            self._clear_theme_font_slots(font)
         if size is not None:
             font.size = Pt(size)
         if color_rgb is not None and hasattr(font.color, "rgb"):
@@ -348,22 +346,6 @@ class APAStylesHandler:
             font.bold = bold
         if italic is not None:
             font.italic = italic
-
-    def _clear_theme_font_slots(self, font: Any) -> None:
-        """Remove theme font slots so the explicit font name wins in Word.
-
-        Pandoc's template sets ``w:asciiTheme``/``w:hAnsiTheme``/etc. on
-        heading styles; Word prioritizes those theme slots over
-        ``w:ascii``/``w:hAnsi``, so assigning ``font.name`` alone is not
-        enough for the configured font to actually render.
-        """
-        r_fonts = font.element.find(f"{{{_NS_MAIN}}}rPr/{{{_NS_MAIN}}}rFonts")
-        if r_fonts is None:
-            r_fonts = font.element.find(f"{{{_NS_MAIN}}}rFonts")
-        if r_fonts is None:
-            return
-        for attr in ("w:asciiTheme", "w:hAnsiTheme", "w:eastAsiaTheme", "w:cstheme"):
-            r_fonts.attrib.pop(qn(attr), None)
 
     def _apply_font_to_paragraph(
         self, paragraph: ParagraphType, font_size: int | None = None

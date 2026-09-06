@@ -9,6 +9,13 @@ from pathlib import Path
 
 from .utils.subprocess import CommandFailedError, get_command_path, run_command
 
+# Bundled reference document passed to pandoc via ``--reference-doc``. It
+# ships the APA-styled defaults (Times New Roman, black headings, double
+# spacing) so pandoc emits correctly styled DOCX files from the start
+# instead of relying on the formatter to undo the template's theme
+# fonts/colors. Regenerate with ``scripts/generate_pandoc_reference_docx.py``.
+REFERENCE_DOCX = Path(__file__).resolve().parent / "resources" / "pandoc_reference.docx"
+
 
 def _print_pandoc_missing_error() -> None:
     """Print a friendly, actionable error when Pandoc is not installed."""
@@ -90,6 +97,9 @@ class PandocRunner:
             str(path_obj.absolute()),
             "--standalone",
         ]
+
+        if REFERENCE_DOCX.is_file():
+            cmd.append(f"--reference-doc={REFERENCE_DOCX}")
 
         if resource_path:
             cmd.extend([f"--resource-path={resource_path}"])

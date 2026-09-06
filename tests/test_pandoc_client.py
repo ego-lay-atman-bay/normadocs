@@ -28,6 +28,14 @@ class TestPandocClient(unittest.TestCase):
         self.assertIn("-o", cmd)
         self.assertIn(str(Path("output.docx").absolute()), cmd)
 
+        # The bundled reference doc must be passed so pandoc emits APA-styled
+        # headings (black, Times New Roman) instead of the template defaults.
+        ref_args = [c for c in cmd if c.startswith("--reference-doc=")]
+        self.assertEqual(len(ref_args), 1, f"Expected --reference-doc in pandoc cmd: {cmd}")
+        ref_path = ref_args[0].split("=", 1)[1]
+        self.assertTrue(ref_path.endswith("pandoc_reference.docx"))
+        self.assertTrue(Path(ref_path).is_file(), f"Reference doc missing: {ref_path}")
+
     @patch("subprocess.run")
     def test_run_failure_pandoc_error(self, mock_run):
         mock_result = MagicMock()
