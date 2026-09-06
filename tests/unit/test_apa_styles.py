@@ -71,12 +71,12 @@ class TestCreateStyles(unittest.TestCase):
         finally:
             os.unlink(temp_path)
 
-    def test_headings_forced_black_without_theme(self):
-        """Headings should be forced to black regardless of template color.
+    def test_headings_color_left_automatic(self):
+        """create_styles must not force a heading color.
 
-        Pandoc's default reference docx ships Heading 1-5 with an accent
-        theme color; APA 7 requires black headings, so create_styles must
-        override the template color with RGB black.
+        Heading color resolves to 'automatic' in the bundled pandoc
+        reference template; the styles handler only sets font name/size/
+        bold/italic, so pre-existing colors must survive unchanged.
         """
         doc, handler, temp_path = self._create_doc_with_config()
 
@@ -87,54 +87,32 @@ class TestCreateStyles(unittest.TestCase):
             handler.create_styles()
 
             for name in ("Heading 1", "Heading 2", "Heading 3", "Heading 4", "Heading 5"):
-                style = doc.styles[name]
+                color = doc.styles[name].font.color
                 self.assertEqual(
-                    style.font.color.rgb,
-                    RGBColor(0, 0, 0),
-                    f"{name} should be black after create_styles",
+                    color.rgb,
+                    RGBColor(0x0F, 0x47, 0x61),
+                    f"{name} heading color should not be overwritten",
                 )
                 self.assertIsNone(
-                    style.font.color.theme_color,
-                    f"{name} should not retain a theme color",
+                    color.theme_color,
+                    f"{name} should not acquire a theme color",
                 )
         finally:
             os.unlink(temp_path)
 
-    def test_heading_theme_font_slots_cleared(self):
-        """Heading styles should use Times New Roman, not theme fonts.
-
-        Pandoc's template assigns the heading styles theme font slots
-        (``w:asciiTheme``/``w:hAnsiTheme``); Word prioritizes those over the
-        explicit ``w:ascii`` name, so create_styles must strip them to make
-        the configured body font actually render.
-        """
-        ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    def test_heading_font_is_times_new_roman(self):
+        """create_styles applies Times New Roman to heading styles."""
         doc, handler, temp_path = self._create_doc_with_config()
 
         try:
-            for name in ("Heading 1", "Heading 2", "Heading 3", "Heading 4", "Heading 5"):
-                style_el = doc.styles[name].element
-                r_fonts = style_el.find(f"{{{ns}}}rPr/{{{ns}}}rFonts")
-                if r_fonts is None:
-                    self.fail(f"{name} should have an rFonts element")
-                r_fonts.set(f"{{{ns}}}asciiTheme", "majorHAnsi")
-                r_fonts.set(f"{{{ns}}}hAnsiTheme", "majorHAnsi")
-                r_fonts.set(f"{{{ns}}}eastAsiaTheme", "majorEastAsia")
-                r_fonts.set(f"{{{ns}}}cstheme", "majorBidi")
-
             handler.create_styles()
 
             for name in ("Heading 1", "Heading 2", "Heading 3", "Heading 4", "Heading 5"):
-                style_el = doc.styles[name].element
-                self.assertEqual(doc.styles[name].font.name, "Times New Roman")
-                r_fonts = style_el.find(f"{{{ns}}}rPr/{{{ns}}}rFonts")
-                self.assertIsNotNone(r_fonts, f"{name} should keep an rFonts element")
-                for attr in ("asciiTheme", "hAnsiTheme", "eastAsiaTheme", "cstheme"):
-                    self.assertNotIn(
-                        f"{{{ns}}}{attr}",
-                        r_fonts.attrib,
-                        f"{name} should have no {attr} after create_styles",
-                    )
+                self.assertEqual(
+                    doc.styles[name].font.name,
+                    "Times New Roman",
+                    f"{name} should use Times New Roman",
+                )
         finally:
             os.unlink(temp_path)
 

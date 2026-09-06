@@ -49,6 +49,55 @@ class TestSetupPageLayout(unittest.TestCase):
         finally:
             os.unlink(temp_path)
 
+    def test_header_distance_centered_in_top_margin(self):
+        """Header (page number) should sit in the middle of the top margin.
+
+        Pandoc's template ships ``w:header="0"`` which pins the header flush
+        against the top page edge; the header must instead be vertically
+        centered within the top margin band (half the top margin).
+        """
+        doc, handler, temp_path = self._create_doc_with_config()
+
+        try:
+            handler.setup_page_layout()
+
+            for section in doc.sections:
+                self.assertIsNotNone(section.header_distance)
+                self.assertAlmostEqual(
+                    section.header_distance.inches,
+                    0.5,
+                    places=2,
+                    msg="Header distance should be half of the 1.0in top margin",
+                )
+        finally:
+            os.unlink(temp_path)
+
+    def test_header_distance_follows_custom_top_margin(self):
+        """Header distance should track a custom top margin."""
+        config = {
+            "margins": {
+                "top": 2.0,
+                "bottom": 1.0,
+                "left": 1.0,
+                "right": 1.0,
+                "unit": "inches",
+            }
+        }
+        doc, handler, temp_path = self._create_doc_with_config(config)
+
+        try:
+            handler.setup_page_layout()
+
+            for section in doc.sections:
+                self.assertAlmostEqual(
+                    section.header_distance.inches,
+                    1.0,
+                    places=2,
+                    msg="Header distance should be half of the 2.0in top margin",
+                )
+        finally:
+            os.unlink(temp_path)
+
     def test_margins_custom_config(self):
         """Custom margins should be applied when specified in config."""
         config = {

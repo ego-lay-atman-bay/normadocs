@@ -93,6 +93,11 @@ class APAPageHandler:
             section.right_margin = self._margin_to_inches(margins["right"], unit)
             section.top_margin = self._margin_to_inches(margins["top"], unit)
             section.bottom_margin = self._margin_to_inches(margins["bottom"], unit)
+            # Center the header (page number / running head) vertically within
+            # the top margin band. Pandoc's template ships ``w:header="0"``,
+            # which pins the header text flush against the top page edge; half
+            # the top margin is the vertical middle of the band.
+            section.header_distance = self._margin_to_inches(margins["top"] / 2, unit)
 
             # Enable separate first-page header/footer so the cover can show
             # only its page number while later pages may use a running head.
