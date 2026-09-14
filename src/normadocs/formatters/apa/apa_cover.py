@@ -210,7 +210,7 @@ class APACoverHandler:
         """Repeat title as centered bold heading on first text page when needed."""
         if self._has_title_heading(meta):
             return
-        anchor = self._find_first_heading() or self._find_first_body_paragraph()
+        anchor = self._find_first_body_paragraph() or self._find_first_heading()
         if anchor is None:
             return
         title_heading = anchor.insert_paragraph_before(meta.title)
@@ -220,7 +220,7 @@ class APACoverHandler:
         for run in title_heading.runs:
             run.bold = True
 
-    def _find_first_heading(self) -> Any | None:
+    def _find_first_heading(self):
         """Return the first Heading 1 paragraph with text, if any."""
         return next(
             (
