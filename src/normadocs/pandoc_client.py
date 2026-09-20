@@ -99,18 +99,18 @@ class PandocRunner:
         ]
 
         if REFERENCE_DOCX.is_file():
-            cmd.append(f"--reference-doc={REFERENCE_DOCX}")
+            cmd.extend(["--reference-doc", str(REFERENCE_DOCX.absolute())])
 
         if resource_path:
-            cmd.extend([f"--resource-path={resource_path}"])
+            cmd.extend(["--resource-path", resource_path])
 
         if bibliography:
-            cmd.extend([f"--bibliography={bibliography}", "--citeproc"])
+            cmd.extend(["--bibliography", bibliography, "--citeproc"])
 
         if csl:
-            cmd.extend([f"--csl={csl}"])
+            cmd.extend(["--csl", csl])
 
-        print(f"  ▸ Ejecutando Pandoc -> {path_obj.name}")
+        print(f"  ▸ Running Pandoc -> {path_obj.name}")
 
         try:
             run_command(cmd)
