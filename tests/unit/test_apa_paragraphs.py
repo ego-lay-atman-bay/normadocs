@@ -8,6 +8,7 @@ and _build_heading_level_map methods.
 import unittest
 
 from docx import Document
+from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -666,6 +667,49 @@ class TestBlockQuotes(unittest.TestCase):
         APAParagraphsHandler(doc).process()
 
         self.assertIn('"cita breve"', doc.paragraphs[0].text)
+
+    def test_pandoc_block_text_has_no_first_line_indent(self):
+        """A pandoc Block Text quote keeps no first-line indent after both passes."""
+        doc = Document()
+        doc.styles.add_style("Block Text", WD_STYLE_TYPE.PARAGRAPH)
+        doc.add_paragraph(self._LONG_TEXT, style="Block Text")
+
+        handler = APAParagraphsHandler(doc)
+        handler.process()
+        handler.apply_body_indent()
+
+        para = doc.paragraphs[0]
+        self.assertEqual(para.paragraph_format.first_line_indent, Inches(0))
+        self.assertIsNone(para.paragraph_format.left_indent)
+
+    def test_paragraph_after_block_text_has_no_indent(self):
+        """The paragraph following a pandoc block quote keeps no first-line indent."""
+        doc = Document()
+        doc.styles.add_style("Block Text", WD_STYLE_TYPE.PARAGRAPH)
+        doc.add_paragraph(self._LONG_TEXT, style="Block Text")
+        doc.add_paragraph("Párrafo que sigue a la cita en bloque.", style="Body Text")
+        doc.add_paragraph("Párrafo posterior con sangría normal.", style="Body Text")
+
+        handler = APAParagraphsHandler(doc)
+        handler.process()
+        handler.apply_body_indent()
+
+        self.assertEqual(doc.paragraphs[0].paragraph_format.first_line_indent, Inches(0))
+        self.assertEqual(doc.paragraphs[1].paragraph_format.first_line_indent, Inches(0))
+        self.assertEqual(doc.paragraphs[2].paragraph_format.first_line_indent, Inches(0.5))
+
+    def test_paragraph_after_detected_block_quote_has_no_indent(self):
+        """The paragraph following a detected block quote keeps no first-line indent."""
+        doc = Document()
+        doc.add_paragraph(f'"{self._LONG_TEXT}," (García, 2020).', style="Body Text")
+        doc.add_paragraph("Párrafo siguiente a la cita detectada.", style="Body Text")
+
+        handler = APAParagraphsHandler(doc)
+        handler.process()
+        handler.apply_body_indent()
+
+        self.assertEqual(doc.paragraphs[0].paragraph_format.first_line_indent, Inches(0))
+        self.assertEqual(doc.paragraphs[1].paragraph_format.first_line_indent, Inches(0))
 
 
 if __name__ == "__main__":

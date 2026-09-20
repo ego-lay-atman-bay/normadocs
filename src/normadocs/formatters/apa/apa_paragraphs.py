@@ -17,6 +17,7 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 
 from ...config import (
+    BLOCK_TEXT_STYLE,
     BODY_TEXT_STYLE,
     COMPACT_STYLE,
     DEFAULT_BODY_FONT,
@@ -122,6 +123,7 @@ class ParagraphState:
     in_abstract: bool = False
     just_left_abstract: bool = False
     first_paragraph_after_heading: bool = False
+    first_paragraph_after_quote: bool = False
     first_heading_seen: bool = False
     heading_levels: dict[str, int] = field(default_factory=dict)
 
@@ -357,7 +359,7 @@ class APAParagraphsHandler:
             self._format_abstract_body(p, state, text_strip)
             return
         if self._is_body_style(style_name):
-            self._format_normal_body(p, state, text_strip)
+            self._format_normal_body(p, state, text_strip, style_name)
 
     def _remove_numeric_paragraph(self, p: ParagraphType, text_strip: str) -> bool:
         """Remove purely numeric paragraphs; return True if removed."""
@@ -370,7 +372,13 @@ class APAParagraphsHandler:
 
     def _is_body_style(self, style_name: str) -> bool:
         """Return whether style is a body paragraph style."""
-        return style_name in (BODY_TEXT_STYLE, NORMAL_STYLE, "First Paragraph", COMPACT_STYLE)
+        return style_name in (
+            BODY_TEXT_STYLE,
+            NORMAL_STYLE,
+            "First Paragraph",
+            COMPACT_STYLE,
+            BLOCK_TEXT_STYLE,
+        )
 
     def _format_reference_body(self, p: ParagraphType, text_strip: str) -> None:
         """Apply hanging indent to reference entries."""
@@ -393,7 +401,9 @@ class APAParagraphsHandler:
             state.in_abstract = False
             state.just_left_abstract = True
 
-    def _format_normal_body(self, p: ParagraphType, state: ParagraphState, text_strip: str) -> None:
+    def _format_normal_body(
+        self, p: ParagraphType, state: ParagraphState, text_strip: str, style_name: str
+    ) -> None:
         """Apply normal body indentation and block-quote handling."""
         if not text_strip:
             return
@@ -402,16 +412,36 @@ class APAParagraphsHandler:
         if state.just_left_abstract:
             self._set_page_break_before(p)
             state.just_left_abstract = False
-        if self._is_block_quote(text_strip):
-            self._convert_block_quote(p, text_strip)
+        if style_name == BLOCK_TEXT_STYLE or self._is_block_quote(text_strip):
+            if style_name == BLOCK_TEXT_STYLE:
+                self._format_block_text(p, text_strip)
+            else:
+                self._convert_block_quote(p, text_strip)
+            state.first_paragraph_after_quote = True
             return
         self._apply_first_line_rule(p, state)
 
+    def _format_block_text(self, p: ParagraphType, text: str) -> None:
+        """Format a pandoc ``Block Text`` (Markdown ``>`` quote) paragraph.
+
+        The left indent comes from the reference-doc style, so only the
+        first-line indent is cleared and stray quotation marks are removed.
+        """
+        p.paragraph_format.first_line_indent = Inches(0)
+        stripped = text.strip()
+        quote_chars = ('"', "\u201c", "\u201d", "\u00ab", "\u00bb")
+        if stripped[:1] in quote_chars:
+            stripped = stripped[1:].lstrip()
+        stripped = self._fix_block_quote_closing(stripped)
+        if stripped and stripped != text.strip():
+            self._replace_paragraph_text(p, stripped)
+
     def _apply_first_line_rule(self, p: ParagraphType, state: ParagraphState) -> None:
-        """Apply first-line indent rule based on heading proximity."""
-        if state.first_paragraph_after_heading:
+        """Apply first-line indent rule based on heading/quotation proximity."""
+        if state.first_paragraph_after_heading or state.first_paragraph_after_quote:
             p.paragraph_format.first_line_indent = Inches(0)
             state.first_paragraph_after_heading = False
+            state.first_paragraph_after_quote = False
         else:
             p.paragraph_format.first_line_indent = Inches(0.5)
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
@@ -809,9 +839,13 @@ class APAParagraphsHandler:
         return self._is_short_italic_caption(p, text)
 
     def _has_existing_indent(self, p: ParagraphType) -> bool:
-        """Check if paragraph already has first-line indent."""
-        fli = p.paragraph_format.first_line_indent
-        return fli is not None and fli != 0
+        """Check if paragraph already has an explicit first-line indent.
+
+        Any explicit value (including zero) is honored: the first pass
+        deliberately zeroes indents for first paragraphs after headings and
+        for block quotes, so the final pass must not re-indent them.
+        """
+        return p.paragraph_format.first_line_indent is not None
 
     def _has_block_left_indent(self, p: ParagraphType) -> bool:
         """Check if paragraph has block left indent (block quote)."""

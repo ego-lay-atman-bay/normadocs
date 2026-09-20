@@ -33,7 +33,7 @@ class _FilterState:
     in_abstract: bool = False
     in_references: bool = False
     in_toc: bool = False
-    skip_first_body_after_heading: bool = False
+    skip_next_body: bool = False
 
 
 class ParagraphsCheck:
@@ -71,8 +71,8 @@ class ParagraphsCheck:
             return True
         if p.alignment == "center":
             return True
-        if state.skip_first_body_after_heading:
-            state.skip_first_body_after_heading = False
+        if state.skip_next_body:
+            state.skip_next_body = False
             return True
         return False
 
@@ -88,10 +88,19 @@ class ParagraphsCheck:
                 continue
             if self._handle_heading_paragraph(p, state):
                 continue
+            if self._handle_block_quote_paragraph(p, state):
+                continue
             if self._should_skip_body(p, state):
                 continue
             filtered.append(p)
         return filtered
+
+    def _handle_block_quote_paragraph(self, p: DOCXParagraphInfo, state: _FilterState) -> bool:
+        """Skip Block Text quotes and let the following paragraph stay flush."""
+        if "Block Text" not in (p.style_name or ""):
+            return False
+        state.skip_next_body = True
+        return True
 
     def _handle_heading_paragraph(self, p: DOCXParagraphInfo, state: _FilterState) -> bool:
         style_name = p.style_name or ""
@@ -99,7 +108,7 @@ class ParagraphsCheck:
             return False
         text_lower = p.text.strip().lower()
         self._update_heading_state(text_lower, state)
-        state.skip_first_body_after_heading = True
+        state.skip_next_body = True
         return True
 
     def _update_heading_state(self, text_lower: str, state: _FilterState) -> None:

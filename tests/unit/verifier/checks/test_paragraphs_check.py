@@ -582,6 +582,31 @@ class TestParagraphsCheckExclusions(unittest.TestCase):
             f"Caption/Compact/Source paragraphs should be excluded but got: {indent_issues}",
         )
 
+    def test_block_text_quote_and_next_paragraph_excluded(self) -> None:
+        """Block Text quotes and the paragraph following them must not count as missing indent."""
+
+        def build(doc: Document) -> None:
+            self._add_body_paragraphs(doc, count=5)
+            self._ensure_style(doc, "Block Text")
+            self._add_paragraph(
+                doc,
+                "A long block quotation spanning several lines of the document.",
+                style="Block Text",
+                first_line_indent=0.0,
+            )
+            self._add_paragraph(
+                doc,
+                "Paragraph immediately following the block quote without indent.",
+                first_line_indent=None,
+            )
+
+        docx_path = self._create_docx("block_text_excluded.docx", build)
+        issues = self._run_check(docx_path)
+        indent_issues = [i for i in issues if "indent" in i.check]
+        self.assertEqual(
+            indent_issues, [], f"Block Text quotes should be excluded but got: {indent_issues}"
+        )
+
     def test_tabla_figura_nota_digit_excluded(self) -> None:
         """Paragraphs starting with Tabla/Figura/Nota. or all digits must be excluded."""
 
